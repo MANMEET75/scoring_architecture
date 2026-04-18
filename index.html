@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>In-House CRM Scoring Framework — Cars24 Seller Journey</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f3f2ee;
+    --bg2: #ffffff;
+    --bg3: #e9e7e0;
+    --text: #16161a;
+    --text2: #44444a;
+    --text3: #8a8a90;
+    --border: rgba(0,0,0,0.08);
+    --border2: rgba(0,0,0,0.14);
+    --accent: #1a0f2e;
+
+    --blue50: #e8f1fd; --blue100: #bdd2fa; --blue600: #1d4ed8; --blue800: #1e3a8a;
+    --teal50: #e0f5ef; --teal100: #9fe0cb; --teal600: #0f6e56; --teal800: #084f3c;
+    --purple50: #eeecfd; --purple100: #cdc9f5; --purple600: #4f44bb; --purple800: #3a3189;
+    --amber50: #fdf0db; --amber100: #fac876; --amber600: #8a5008; --amber800: #633a05;
+    --green50: #e8f5de; --green100: #bfe097; --green600: #3a6d10; --green800: #264d09;
+    --coral50: #faeae6; --coral100: #f4c0ae; --coral600: #9a3c1e; --coral800: #712b13;
+    --red50: #fde8e8; --red100: #f7bfbf; --red600: #a32d2d; --red800: #791f1f;
+    --gray50: #f1ede8; --gray100: #d2cfc7; --gray600: #5e5d5a; --gray800: #3a3937;
+    --pink50: #fbeaf0; --pink100: #f4c0d1; --pink600: #993556; --pink800: #72243e;
+  }
+
+  body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .top-band {
+    background: var(--accent);
+    color: #fff; padding: 36px 48px 30px;
+    position: relative; overflow: hidden;
+  }
+  .top-band::before {
+    content: ''; position: absolute;
+    top: -80px; right: -80px; width: 280px; height: 280px;
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.05); pointer-events: none;
+  }
+  .top-band::after {
+    content: ''; position: absolute;
+    bottom: -50px; left: 280px; width: 160px; height: 160px;
+    border-radius: 50%; border: 1px solid rgba(255,255,255,0.04); pointer-events: none;
+  }
+  .top-eyebrow {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.14em;
+    text-transform: uppercase; color: rgba(255,255,255,0.38);
+    margin-bottom: 10px; font-family: 'Fira Code', monospace;
+  }
+  .top-title { font-size: 24px; font-weight: 600; line-height: 1.25; margin-bottom: 5px; color: #fff; }
+  .top-sub { font-size: 13px; color: rgba(255,255,255,0.48); margin-bottom: 20px; line-height: 1.5; }
+  .top-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .top-tag {
+    font-size: 10px; font-weight: 500; font-family: 'Fira Code', monospace;
+    padding: 3px 10px; border-radius: 20px;
+    background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.72);
+    border: 1px solid rgba(255,255,255,0.10);
+  }
+
+  .main { max-width: 960px; margin: 0 auto; padding: 36px 24px 64px; }
+  .controls { display: flex; gap: 8px; margin-bottom: 20px; justify-content: flex-end; }
+  .ctrl-btn {
+    font-size: 11px; font-family: 'Fira Code', monospace;
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2);
+    background: var(--bg2); color: var(--text2); cursor: pointer; transition: background 0.15s;
+  }
+  .ctrl-btn:hover { background: var(--bg3); }
+
+  .phase-block {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 14px; overflow: hidden; transition: box-shadow 0.2s;
+  }
+  .phase-block:hover { box-shadow: 0 2px 18px rgba(0,0,0,0.06); }
+  .phase-header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 20px;
+    cursor: pointer; user-select: none; border-bottom: 1px solid transparent;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .phase-header:hover { background: var(--bg3); }
+  .phase-header.open { border-bottom-color: var(--border); }
+  .phase-num { font-size: 10px; font-weight: 500; font-family: 'Fira Code', monospace; color: var(--text3); min-width: 28px; }
+  .phase-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .phase-title-text { font-size: 14px; font-weight: 500; flex: 1; color: var(--text); }
+  .phase-badge { font-size: 10px; font-weight: 500; font-family: 'Fira Code', monospace; padding: 3px 9px; border-radius: 20px; }
+  .chevron { font-size: 10px; color: var(--text3); transition: transform 0.2s; font-family: 'Fira Code', monospace; }
+  .chevron.open { transform: rotate(90deg); }
+  .phase-body { padding: 20px; display: block; }
+  .phase-body.collapsed { display: none; }
+  .phase-connector { text-align: center; padding: 4px 0; color: var(--text3); font-size: 14px; }
+  .section-label {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--text3); margin: 12px 0 7px; font-family: 'Fira Code', monospace;
+  }
+
+  .cards-grid { display: grid; gap: 10px; margin-top: 8px; }
+  .cards-2 { grid-template-columns: repeat(2, 1fr); }
+  .cards-3 { grid-template-columns: repeat(3, 1fr); }
+  .cards-auto { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+  @media (max-width: 640px) {
+    .cards-2,.cards-3 { grid-template-columns: 1fr; }
+    .top-band { padding: 24px 18px 20px; }
+    .main { padding: 20px 12px 48px; }
+  }
+  .card { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--border); background: var(--bg); }
+  .card-title { font-size: 12px; font-weight: 500; margin-bottom: 5px; color: var(--text); }
+  .card-body { font-size: 11px; color: var(--text2); line-height: 1.55; }
+  .card-tag {
+    display: inline-block; font-size: 10px; font-weight: 500; font-family: 'Fira Code', monospace;
+    padding: 2px 7px; border-radius: 10px; margin-top: 6px; margin-right: 3px;
+  }
+
+  .sub-grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+  .mini-card { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 9px 12px; font-size: 11px; }
+  .mini-card strong { font-weight: 500; font-size: 11px; display: block; margin-bottom: 3px; color: var(--text); }
+  .mini-card span { color: var(--text2); font-size: 10.5px; line-height: 1.45; }
+
+  .highlight-box { border-radius: 8px; padding: 12px 15px; margin-top: 10px; border: 1px solid; font-size: 11px; line-height: 1.65; }
+  .h-amber  { background: var(--amber50);  border-color: var(--amber100);  color: var(--amber800); }
+  .h-teal   { background: var(--teal50);   border-color: var(--teal100);   color: var(--teal800); }
+  .h-blue   { background: var(--blue50);   border-color: var(--blue100);   color: var(--blue800); }
+  .h-purple { background: var(--purple50); border-color: var(--purple100); color: var(--purple800); }
+  .h-green  { background: var(--green50);  border-color: var(--green100);  color: var(--green800); }
+  .h-coral  { background: var(--coral50);  border-color: var(--coral100);  color: var(--coral800); }
+  .h-red    { background: var(--red50);    border-color: var(--red100);    color: var(--red800); }
+
+  .funnel-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+  .funnel-node { padding: 5px 13px; border-radius: 20px; font-size: 11px; font-weight: 500; border: 1px solid; }
+  .funnel-arrow { font-size: 11px; color: var(--text3); }
+
+  .score-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-top: 10px; }
+  .score-card {
+    border-radius: 10px; padding: 14px 16px;
+    border: 1px solid; position: relative; overflow: hidden;
+  }
+  .score-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0;
+    width: 4px; height: 100%;
+    border-radius: 10px 0 0 10px;
+  }
+  .score-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .score-desc { font-size: 11px; line-height: 1.55; margin-bottom: 8px; }
+  .score-components { font-size: 10px; font-family: 'Fira Code', monospace; margin-bottom: 6px; }
+  .score-comp-label { font-weight: 500; margin-bottom: 3px; }
+  .score-comp-list { color: var(--text3); line-height: 1.6; }
+
+  .sc-blue   { background: var(--blue50);   border-color: var(--blue100);   color: var(--blue800); }
+  .sc-blue::before { background: var(--blue600); }
+  .sc-teal   { background: var(--teal50);   border-color: var(--teal100);   color: var(--teal800); }
+  .sc-teal::before { background: var(--teal600); }
+  .sc-purple { background: var(--purple50); border-color: var(--purple100); color: var(--purple800); }
+  .sc-purple::before { background: var(--purple600); }
+  .sc-amber  { background: var(--amber50);  border-color: var(--amber100);  color: var(--amber800); }
+  .sc-amber::before { background: var(--amber600); }
+  .sc-coral  { background: var(--coral50);  border-color: var(--coral100);  color: var(--coral800); }
+  .sc-coral::before { background: var(--coral600); }
+  .sc-pink   { background: var(--pink50);   border-color: var(--pink100);   color: var(--pink800); }
+  .sc-pink::before { background: var(--pink600); }
+
+  .formula-box {
+    background: var(--accent); color: #c8d0ff; border-radius: 10px;
+    padding: 16px 18px; font-family: 'Fira Code', monospace;
+    font-size: 11.5px; line-height: 1.9; margin-top: 10px; overflow-x: auto;
+  }
+  .fc { color: rgba(255,255,255,0.3); font-size: 10px; }
+  .fk { color: #9fe0cb; }
+  .fv { color: #fac876; }
+  .fo { color: rgba(255,255,255,0.5); }
+  .fh { color: #cdc9f5; }
+
+  .ba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  @media (max-width: 560px) { .ba-grid { grid-template-columns: 1fr; } }
+  .ba-card { border-radius: 8px; padding: 12px 14px; border: 1px solid; }
+  .ba-label { font-size: 10px; font-weight: 500; font-family: 'Fira Code', monospace; letter-spacing: 0.07em; margin-bottom: 6px; }
+  .ba-before { background: var(--red50); border-color: var(--red100); }
+  .ba-before .ba-label { color: var(--red600); }
+  .ba-after  { background: var(--green50); border-color: var(--green100); }
+  .ba-after  .ba-label { color: var(--green600); }
+
+  .impact-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 8px; }
+  .impact-card { text-align: center; padding: 16px 10px; border-radius: 10px; border: 1px solid var(--green100); background: var(--green50); }
+  .impact-num { font-size: 22px; font-weight: 600; color: var(--green600); margin-bottom: 4px; font-family: 'Fira Code', monospace; }
+  .impact-label { font-size: 10px; color: var(--green800); line-height: 1.4; }
+
+  .tier-grid { display: grid; gap: 6px; margin-top: 10px; }
+  .tier-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 8px; border: 1px solid;
+  }
+  .tier-label { font-size: 11px; font-weight: 500; min-width: 90px; font-family: 'Fira Code', monospace; }
+  .tier-bar-wrap { flex: 1; background: rgba(0,0,0,0.06); border-radius: 20px; height: 8px; overflow: hidden; }
+  .tier-bar { height: 100%; border-radius: 20px; }
+  .tier-desc { font-size: 10px; min-width: 180px; }
+
+  /* comparison table */
+  .compare-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+  .compare-table th {
+    text-align: left; padding: 8px 12px;
+    background: var(--bg3); color: var(--text2); font-weight: 500;
+    font-family: 'Fira Code', monospace; font-size: 10px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    border-bottom: 1px solid var(--border2);
+  }
+  .compare-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text2); vertical-align: top; line-height: 1.5; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table tr:hover td { background: var(--bg); }
+  .compare-table td:first-child { font-weight: 500; color: var(--text); min-width: 130px; }
+
+  .tag-blue   { background: var(--blue50);   color: var(--blue600); }
+  .tag-green  { background: var(--green50);  color: var(--green600); }
+  .tag-amber  { background: var(--amber50);  color: var(--amber600); }
+  .tag-purple { background: var(--purple50); color: var(--purple600); }
+  .tag-coral  { background: var(--coral50);  color: var(--coral600); }
+  .tag-teal   { background: var(--teal50);   color: var(--teal600); }
+  .tag-gray   { background: var(--gray50);   color: var(--gray600); }
+  .tag-red    { background: var(--red50);    color: var(--red600); }
+  .tag-pink   { background: var(--pink50);   color: var(--pink600); }
+
+  .dot-blue   { background: #4a7ef5; }
+  .dot-teal   { background: #1fad7e; }
+  .dot-amber  { background: #e09a20; }
+  .dot-purple { background: #7c74dc; }
+  .dot-coral  { background: #db6040; }
+  .dot-green  { background: #5fa31e; }
+  .dot-gray   { background: #8a8a8e; }
+  .dot-pink   { background: #d4537e; }
+  .dot-red    { background: #d04040; }
+
+  .badge-blue   { background: var(--blue50);   color: var(--blue600); }
+  .badge-teal   { background: var(--teal50);   color: var(--teal600); }
+  .badge-amber  { background: var(--amber50);  color: var(--amber600); }
+  .badge-purple { background: var(--purple50); color: var(--purple600); }
+  .badge-coral  { background: var(--coral50);  color: var(--coral600); }
+  .badge-green  { background: var(--green50);  color: var(--green600); }
+  .badge-gray   { background: var(--gray50);   color: var(--gray600); }
+  .badge-red    { background: var(--red50);    color: var(--red600); }
+  .badge-pink   { background: var(--pink50);   color: var(--pink600); }
+
+  .footer { text-align: center; padding: 24px; font-size: 11px; color: var(--text3); font-family: 'Fira Code', monospace; border-top: 1px solid var(--border); margin-top: 20px; }
+
+  @media print {
+    .phase-body.collapsed { display: block !important; }
+    .top-band { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-band">
+  <div class="top-eyebrow">Cars24 · CRM Intelligence · Seller Journey</div>
+  <div class="top-title">In-House CRM Scoring Framework</div>
+  <div class="top-sub">Replaced CleverTap vendor dependency with a behavioural scoring engine · Suppressed 40% low-intent users · Saved ₹1 Cr/year on WhatsApp alone</div>
+  <div class="top-tags">
+    <span class="top-tag">6 score dimensions</span>
+    <span class="top-tag">Engagement score</span>
+    <span class="top-tag">RFM scoring</span>
+    <span class="top-tag">Intent score</span>
+    <span class="top-tag">Velocity score</span>
+    <span class="top-tag">40% suppression</span>
+    <span class="top-tag">~₹1 Cr/year saved</span>
+    <span class="top-tag">Clickstream + GA</span>
+    <span class="top-tag">WhatsApp optimisation</span>
+    <span class="top-tag">CleverTap replaced</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="controls">
+    <button class="ctrl-btn" onclick="expandAll()">Expand all</button>
+    <button class="ctrl-btn" onclick="collapseAll()">Collapse all</button>
+  </div>
+
+  <!-- PHASE 0: PROBLEM -->
+  <div class="phase-block" id="p0">
+    <div class="phase-header open" onclick="toggle('p0')">
+      <div class="phase-num">00</div>
+      <div class="phase-dot dot-red"></div>
+      <div class="phase-title-text">Business problem — blanket targeting without personalisation</div>
+      <span class="phase-badge badge-red">Context</span>
+      <span class="chevron open" id="ch-p0">▶</span>
+    </div>
+    <div class="phase-body" id="b-p0">
+      <div class="section-label">How CRM targeting worked before this project</div>
+      <div class="ba-grid">
+        <div class="ba-card ba-before">
+          <div class="ba-label">BEFORE — blanket campaigns</div>
+          <div style="font-size:11px;color:#7a2020;line-height:1.7;">
+            Every seller targeted with the same messaging<br>
+            No intent-based filtering or segmentation<br>
+            Campaigns sent to users unlikely to convert<br>
+            Repeated WhatsApp / SMS sends to cold users<br>
+            Vendor (CleverTap) used for engagement — high cost<br>
+            No suppression logic — paying per message wasted
+          </div>
+        </div>
+        <div class="ba-card ba-after">
+          <div class="ba-label">AFTER — score-driven targeting</div>
+          <div style="font-size:11px;color:var(--green800);line-height:1.7;">
+            Each seller scored on 6 behavioural dimensions<br>
+            High-intent users → targeted with personalised messaging<br>
+            Low-intent users → suppressed from campaigns<br>
+            ~40% of users suppressed per campaign<br>
+            In-house solution — zero external vendor cost<br>
+            CRM team runs independently without CleverTap
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:14px;">The core problem at each layer</div>
+      <div class="sub-grid" style="margin-top:0;">
+        <div class="mini-card"><strong>No intent signal</strong><span>CRM team had no way to distinguish a seller who browsed once 30 days ago from one who visited 5 times this week and filled a quote form. Both received the same message.</span></div>
+        <div class="mini-card"><strong>Wasted vendor spend</strong><span>Every WhatsApp message costs ~₹0.35. Sending to ~3 Cr users who were cold or unresponsive was direct cost with zero conversion return.</span></div>
+        <div class="mini-card"><strong>CleverTap dependency</strong><span>Behavioural engagement signals were sourced from CleverTap — an external vendor. No internal ownership of the scoring logic or the underlying data.</span></div>
+        <div class="mini-card"><strong>Campaign fatigue</strong><span>Repeatedly messaging low-intent users increases unsubscribe rates, damages sender reputation on WhatsApp Business API, and reduces overall deliverability.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 1: DATA SOURCES -->
+  <div class="phase-block" id="p1">
+    <div class="phase-header open" onclick="toggle('p1')">
+      <div class="phase-num">01</div>
+      <div class="phase-dot dot-blue"></div>
+      <div class="phase-title-text">Data sources &amp; feature derivation</div>
+      <span class="phase-badge badge-blue">Research → Development</span>
+      <span class="chevron open" id="ch-p1">▶</span>
+    </div>
+    <div class="phase-body" id="b-p1">
+      <div class="section-label">Raw data inputs</div>
+      <div class="cards-grid cards-auto">
+        <div class="card">
+          <div class="card-title">Clickstream data</div>
+          <div class="card-body">Page-level click events per user — which pages visited, what was clicked, time on each page, device type. Captures passive browsing intent.</div>
+          <span class="card-tag tag-blue">User behaviour</span>
+        </div>
+        <div class="card">
+          <div class="card-title">GA events &amp; sessions</div>
+          <div class="card-body">Google Analytics session data — session count, dwell time, bounce rate, entry/exit pages, funnel progression events across sell journey.</div>
+          <span class="card-tag tag-blue">Session signals</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Transaction data</div>
+          <div class="card-body">Historical transaction records — sell completions, inspection bookings, quote requests, offer acceptances. Ground truth for conversion history.</div>
+          <span class="card-tag tag-teal">Conversion history</span>
+        </div>
+        <div class="card">
+          <div class="card-title">CRM interaction history</div>
+          <div class="card-body">WhatsApp delivered/read/replied, SMS open/click rates, past campaign response — per-channel conversion history per user.</div>
+          <span class="card-tag tag-purple">Channel response</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Form &amp; disposition data</div>
+          <div class="card-body">Quote form submissions, lead form fills, logged-in activity, disposition outcomes from call centre (interested / not interested / callback).</div>
+          <span class="card-tag tag-amber">Intent signals</span>
+        </div>
+      </div>
+
+      <div class="highlight-box h-blue" style="margin-top:12px;">
+        <strong>Feature derivation approach:</strong> Raw events were aggregated into behavioural features at different time windows — last 7 days, last 30 days, last 90 days. Recency-weighted aggregations were used so recent activity counted more than older activity. Features were derived in-house from raw data, not pulled from CleverTap, establishing full internal ownership of the scoring pipeline.
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 2: SIX SCORES -->
+  <div class="phase-block" id="p2">
+    <div class="phase-header open" onclick="toggle('p2')">
+      <div class="phase-num">02</div>
+      <div class="phase-dot dot-purple"></div>
+      <div class="phase-title-text">The 6 scoring dimensions — design &amp; formulas</div>
+      <span class="phase-badge badge-purple">Core Design</span>
+      <span class="chevron open" id="ch-p2">▶</span>
+    </div>
+    <div class="phase-body" id="b-p2">
+
+      <div class="highlight-box h-purple">
+        All scores are normalised to <strong>0–100</strong> using weighted component aggregation. Higher score = higher intent / engagement. Each score is independently computable — they can be used individually or combined into a composite score for ranking users.
+      </div>
+
+      <div class="score-grid" style="margin-top:12px;">
+        <div class="score-card sc-blue">
+          <div class="score-name">Engagement score</div>
+          <div class="score-desc">Measures how actively a seller is engaging with the Cars24 platform — frequency, recency, and depth of digital interactions.</div>
+          <div class="score-components">
+            <div class="score-comp-label">Components:</div>
+            <div class="score-comp-list">
+              · Session frequency (30-day window)<br>
+              · Dwell time per session<br>
+              · Page click count<br>
+              · Core feature page visits (quote, sell, valuation)
+            </div>
+          </div>
+          <span class="card-tag tag-blue" style="margin-top:6px;">Passive behaviour</span>
+        </div>
+
+        <div class="score-card sc-teal">
+          <div class="score-name">Activity depth score</div>
+          <div class="score-desc">Measures how deep into the sell funnel a seller has progressed — exploration breadth and multi-channel touchpoints.</div>
+          <div class="score-components">
+            <div class="score-comp-label">Components:</div>
+            <div class="score-comp-list">
+              · Funnel stage progression (lead → inspection → offer)<br>
+              · Unique pages explored per session<br>
+              · Multi-channel interaction count<br>
+              · Return visit depth
+            </div>
+          </div>
+          <span class="card-tag tag-teal" style="margin-top:6px;">Funnel depth</span>
+        </div>
+
+        <div class="score-card sc-purple">
+          <div class="score-name">Intent score</div>
+          <div class="score-desc">Measures explicit intent signals — actions that require deliberate effort from the seller, indicating genuine interest in selling.</div>
+          <div class="score-components">
+            <div class="score-comp-label">Components:</div>
+            <div class="score-comp-list">
+              · Quote form submissions<br>
+              · Logged-in session ratio<br>
+              · Lead form completions<br>
+              · Disposition quality (call centre outcomes)<br>
+              · Offer page views
+            </div>
+          </div>
+          <span class="card-tag tag-purple" style="margin-top:6px;">Active intent</span>
+        </div>
+
+        <div class="score-card sc-amber">
+          <div class="score-name">RFM scores</div>
+          <div class="score-desc">Classic recency-frequency-monetary framework extended with a depth dimension specific to the Cars24 sell journey.</div>
+          <div class="score-components">
+            <div class="score-comp-label">Components:</div>
+            <div class="score-comp-list">
+              · R: days since last platform activity<br>
+              · F: visit / interaction frequency<br>
+              · M: monetary value of past transactions<br>
+              · D: depth of funnel engagement
+            </div>
+          </div>
+          <span class="card-tag tag-amber" style="margin-top:6px;">RFM + depth</span>
+        </div>
+
+        <div class="score-card sc-coral">
+          <div class="score-name">Velocity score</div>
+          <div class="score-desc">Captures the trend direction of a seller's activity — are they becoming more engaged (accelerating) or less engaged (decelerating)?</div>
+          <div class="score-components">
+            <div class="score-comp-label">Components:</div>
+            <div class="score-comp-list">
+              · 7-day vs 30-day activity ratio<br>
+              · Growth / decline trend in session count<br>
+              · Engagement acceleration metric<br>
+              · Recent spike detection
+            </div>
+          </div>
+          <span class="card-tag tag-coral" style="margin-top:6px;">Trend direction</span>
+        </div>
+
+        <div class="score-card sc-pink">
+          <div class="score-name">Channel conversion score</div>
+          <div class="score-desc">Per-channel historical responsiveness — how likely is this specific seller to respond to WhatsApp vs SMS based on past behaviour?</div>
+          <div class="score-components">
+            <div class="score-comp-label">Components:</div>
+            <div class="score-comp-list">
+              · WhatsApp: delivered → read → replied rate<br>
+              · SMS: delivery → click rate<br>
+              · Past campaign conversion history<br>
+              · Optimal send time signal
+            </div>
+          </div>
+          <span class="card-tag tag-pink" style="margin-top:6px;">Channel-specific</span>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Score normalisation approach</div>
+      <div class="formula-box">
+<span class="fc"># Each raw score computed from weighted component sum</span><br>
+<span class="fk">raw_score</span> <span class="fo">=</span> <span class="fh">w₁</span><span class="fo">·</span><span class="fv">component_1</span> <span class="fo">+</span> <span class="fh">w₂</span><span class="fo">·</span><span class="fv">component_2</span> <span class="fo">+</span> <span class="fh">w₃</span><span class="fo">·</span><span class="fv">component_3</span> <span class="fo">+ ...</span><br><br>
+<span class="fc"># Normalised to 0–100 using min-max normalisation</span><br>
+<span class="fk">score_normalised</span> <span class="fo">=</span> <span class="fo">((</span><span class="fv">raw_score</span> <span class="fo">-</span> <span class="fv">min_score</span><span class="fo">) /</span> <span class="fo">(</span><span class="fv">max_score</span> <span class="fo">-</span> <span class="fv">min_score</span><span class="fo">))</span> <span class="fo">× 100</span><br><br>
+<span class="fc"># Weights determined from historical campaign conversion analysis</span><br>
+<span class="fc"># Higher weight → component more predictive of eventual conversion</span><br><br>
+<span class="fc"># Example: Engagement score</span><br>
+<span class="fk">engagement</span> <span class="fo">=</span> <span class="fh">0.35</span><span class="fo">·</span><span class="fv">session_freq</span> <span class="fo">+</span> <span class="fh">0.25</span><span class="fo">·</span><span class="fv">dwell_time</span> <span class="fo">+</span> <span class="fh">0.25</span><span class="fo">·</span><span class="fv">page_clicks</span> <span class="fo">+</span> <span class="fh">0.15</span><span class="fo">·</span><span class="fv">core_page_visits</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 3: SEGMENTATION -->
+  <div class="phase-block" id="p3">
+    <div class="phase-header open" onclick="toggle('p3')">
+      <div class="phase-num">03</div>
+      <div class="phase-dot dot-teal"></div>
+      <div class="phase-title-text">User segmentation &amp; suppression logic</div>
+      <span class="phase-badge badge-teal">Implementation</span>
+      <span class="chevron open" id="ch-p3">▶</span>
+    </div>
+    <div class="phase-body" id="b-p3">
+      <div class="section-label">Score-based targeting tiers</div>
+      <div class="tier-grid">
+        <div class="tier-row" style="background:var(--green50);border-color:var(--green100);">
+          <div class="tier-label" style="color:var(--green600);">High intent</div>
+          <div class="tier-bar-wrap"><div class="tier-bar" style="width:90%;background:var(--green600);"></div></div>
+          <div class="tier-desc" style="color:var(--green800);font-size:10px;">Score 70–100 · Target with priority messaging · Personalised offers · All channels enabled</div>
+        </div>
+        <div class="tier-row" style="background:var(--amber50);border-color:var(--amber100);">
+          <div class="tier-label" style="color:var(--amber600);">Medium intent</div>
+          <div class="tier-bar-wrap"><div class="tier-bar" style="width:55%;background:var(--amber600);"></div></div>
+          <div class="tier-desc" style="color:var(--amber800);font-size:10px;">Score 40–69 · Target with standard cadence · Nurture campaigns · Selective channel use</div>
+        </div>
+        <div class="tier-row" style="background:var(--red50);border-color:var(--red100);">
+          <div class="tier-label" style="color:var(--red600);">Low intent</div>
+          <div class="tier-bar-wrap"><div class="tier-bar" style="width:25%;background:var(--red600);"></div></div>
+          <div class="tier-desc" style="color:var(--red800);font-size:10px;">Score 0–39 · Suppressed from campaigns · ~40% of user base falls here · Saves cost</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:14px;">Suppression logic</div>
+      <div class="cards-grid cards-3">
+        <div class="card">
+          <div class="card-title">Score threshold suppression</div>
+          <div class="card-body">Users with composite score below threshold are excluded from campaign audience before message send — not filtered post-send, which wastes cost.</div>
+          <span class="card-tag tag-red">Pre-send filter</span>
+        </div>
+        <div class="card">
+          <div class="card-title">~40% user suppression</div>
+          <div class="card-body">In a typical WhatsApp campaign, approximately 40% of the target audience is suppressed based on low intent scores — dramatically reducing per-campaign cost.</div>
+          <span class="card-tag tag-amber">40% suppressed</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Channel-specific suppression</div>
+          <div class="card-body">Channel conversion score enables channel-level suppression — a user with low WhatsApp responsiveness but high SMS responsiveness is routed accordingly.</div>
+          <span class="card-tag tag-purple">Per-channel</span>
+        </div>
+      </div>
+
+      <div class="highlight-box h-teal" style="margin-top:12px;">
+        <strong>Key design decision — suppress before send, not after:</strong> The suppression list is generated before the campaign audience is pushed to WhatsApp or SMS vendors. This ensures the cost is never incurred for low-intent users — the message is never sent, not delivered-and-ignored. This is the mechanism that directly drives the cost saving.
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 4: VALIDATION -->
+  <div class="phase-block" id="p4">
+    <div class="phase-header open" onclick="toggle('p4')">
+      <div class="phase-num">04</div>
+      <div class="phase-dot dot-amber"></div>
+      <div class="phase-title-text">Score validation &amp; backtesting</div>
+      <span class="phase-badge badge-amber">Validation</span>
+      <span class="chevron open" id="ch-p4">▶</span>
+    </div>
+    <div class="phase-body" id="b-p4">
+      <div class="section-label">Validation approach</div>
+      <div class="sub-grid" style="margin-top:0;">
+        <div class="mini-card"><strong>Historical campaign backtest</strong><span>Scores were computed retrospectively on historical campaign data. Verified that suppressed users (those who would have been scored low) did not convert in the historical period — confirming the suppression would not have missed conversions.</span></div>
+        <div class="mini-card"><strong>Suppression vs conversion check</strong><span>Critical validation: confirmed that ~40% suppressed users had near-zero historical conversion rates. This justified suppression — the cost saving does not come at the expense of missed sales.</span></div>
+        <div class="mini-card"><strong>Score distribution sanity</strong><span>Verified score distributions were not degenerate — no score clustering at 0 or 100. Checked that high scorers had meaningfully higher conversion rates than medium and low scorers.</span></div>
+        <div class="mini-card"><strong>Live campaign monitoring</strong><span>After initial deployment, ran live campaigns using the scoring framework. Observed improved conversion rates on targeted audiences and confirmed cost reduction on WhatsApp sends.</span></div>
+      </div>
+
+      <div class="highlight-box h-amber" style="margin-top:12px;">
+        <strong>The key validation question interviewers will ask:</strong> "How did you make sure suppressing 40% of users didn't reduce your conversions?" Answer: Backtested on historical data — users scored low had near-zero conversion in past campaigns. Their suppression removes cost without removing conversion. This was verified before any live suppression was applied.
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 5: IMPLEMENTATION -->
+  <div class="phase-block" id="p5">
+    <div class="phase-header open" onclick="toggle('p5')">
+      <div class="phase-num">05</div>
+      <div class="phase-dot dot-blue"></div>
+      <div class="phase-title-text">Technical implementation &amp; CRM integration</div>
+      <span class="phase-badge badge-blue">Production</span>
+      <span class="chevron open" id="ch-p5">▶</span>
+    </div>
+    <div class="phase-body" id="b-p5">
+      <div class="section-label">End-to-end data flow</div>
+      <div class="funnel-row" style="flex-wrap:wrap;">
+        <div class="funnel-node" style="background:var(--gray50);border-color:var(--gray100);color:var(--gray600);font-size:10px;">Clickstream + GA + CRM raw data</div>
+        <div class="funnel-arrow">→</div>
+        <div class="funnel-node" style="background:var(--blue50);border-color:var(--blue100);color:var(--blue600);font-size:10px;">Feature derivation</div>
+        <div class="funnel-arrow">→</div>
+        <div class="funnel-node" style="background:var(--purple50);border-color:var(--purple100);color:var(--purple600);font-size:10px;">6 score computation</div>
+        <div class="funnel-arrow">→</div>
+        <div class="funnel-node" style="background:var(--amber50);border-color:var(--amber100);color:var(--amber600);font-size:10px;">Normalisation 0–100</div>
+        <div class="funnel-arrow">→</div>
+        <div class="funnel-node" style="background:var(--teal50);border-color:var(--teal100);color:var(--teal600);font-size:10px;">Suppression list generation</div>
+        <div class="funnel-arrow">→</div>
+        <div class="funnel-node" style="background:var(--green50);border-color:var(--green100);color:var(--green600);font-size:10px;">CRM team targeting</div>
+      </div>
+
+      <div class="sub-grid" style="margin-top:14px;">
+        <div class="mini-card"><strong>In-house ownership</strong><span>All scoring logic, feature derivation, and suppression generation built and owned internally. No dependency on CleverTap or any external behavioural analytics vendor.</span></div>
+        <div class="mini-card"><strong>CRM team consumption</strong><span>Scores exposed as a queryable layer — CRM team directly queries the score table to build campaign audiences. Self-service, no data team involvement per campaign.</span></div>
+        <div class="mini-card"><strong>Score refresh cadence</strong><span>Scores recomputed on a regular cadence (daily/weekly) to reflect recent activity changes — velocity and recency components require up-to-date inputs.</span></div>
+        <div class="mini-card"><strong>Formula-defined scoring</strong><span>All 6 scores defined by explicit formulas — not a black-box ML model. This means the CRM team can understand and trust why a user is scored high or low.</span></div>
+        <div class="mini-card"><strong>Integrated data sources</strong><span>Feature derivation pipeline integrates clickstream, GA, transaction, form, and CRM interaction data into a single user-level feature table before scoring.</span></div>
+        <div class="mini-card"><strong>Replaced CleverTap</strong><span>CleverTap was used as the engagement scoring source. This framework replicated and improved on that capability internally — eliminating the vendor contract cost entirely.</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 6: WHATSAPP OPTIMISATION -->
+  <div class="phase-block" id="p6">
+    <div class="phase-header open" onclick="toggle('p6')">
+      <div class="phase-num">06</div>
+      <div class="phase-dot dot-green"></div>
+      <div class="phase-title-text">WhatsApp communication optimisation</div>
+      <span class="phase-badge badge-green">Cost Optimisation</span>
+      <span class="chevron open" id="ch-p6">▶</span>
+    </div>
+    <div class="phase-body" id="b-p6">
+      <div class="cards-grid cards-3">
+        <div class="card">
+          <div class="card-title">Per-message cost</div>
+          <div class="card-body">WhatsApp Business API charges approximately ₹0.35 per outbound message. At the scale of Cars24's seller base, this accumulates rapidly without intelligent filtering.</div>
+          <span class="card-tag tag-amber">₹0.35 / message</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Volume reduction</div>
+          <div class="card-body">By suppressing ~40% low-intent users, approximately 3 Cr WhatsApp sends were eliminated — users who historically never converted from WhatsApp campaigns.</div>
+          <span class="card-tag tag-teal">~3 Cr sends cut</span>
+        </div>
+        <div class="card">
+          <div class="card-title">Annual saving</div>
+          <div class="card-body">~3 Cr sends × ₹0.35 per message = ~₹1 Cr saved per year on WhatsApp sends alone — users who never responded to these messages historically.</div>
+          <span class="card-tag tag-green">~₹1 Cr/year</span>
+        </div>
+      </div>
+
+      <div class="highlight-box h-green" style="margin-top:12px;">
+        <strong>Channel conversion score enables channel-level routing:</strong> Beyond suppression, the channel conversion score routes users to their most responsive channel. A user who never responds to WhatsApp but clicks SMS links is suppressed from WhatsApp sends and targeted via SMS instead. This improves both cost efficiency and conversion rates simultaneously.
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 7: IMPACT -->
+  <div class="phase-block" id="p7">
+    <div class="phase-header open" onclick="toggle('p7')">
+      <div class="phase-num">07</div>
+      <div class="phase-dot dot-green"></div>
+      <div class="phase-title-text">Business impact &amp; results</div>
+      <span class="phase-badge badge-green">Results</span>
+      <span class="chevron open" id="ch-p7">▶</span>
+    </div>
+    <div class="phase-body" id="b-p7">
+      <div class="impact-grid">
+        <div class="impact-card">
+          <div class="impact-num">~₹1 Cr</div>
+          <div class="impact-label">Saved/year cutting ~3 Cr WhatsApp sends (₹0.35/msg)</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-num">₹3.2L</div>
+          <div class="impact-label">Per-campaign savings on a typical WhatsApp campaign</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-num">~40%</div>
+          <div class="impact-label">Users suppressed per campaign — without losing conversions</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-num">~3 Cr</div>
+          <div class="impact-label">WhatsApp sends eliminated annually</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-num">6</div>
+          <div class="impact-label">Behavioural score dimensions built in-house</div>
+        </div>
+        <div class="impact-card">
+          <div class="impact-num">0</div>
+          <div class="impact-label">External vendor (CleverTap) dependency remaining</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="phase-connector">↓</div>
+
+  <!-- PHASE 8: VS PROPENSITY MODEL -->
+  <div class="phase-block" id="p8">
+    <div class="phase-header open" onclick="toggle('p8')">
+      <div class="phase-num">08</div>
+      <div class="phase-dot dot-purple"></div>
+      <div class="phase-title-text">How this differs from the seller propensity model</div>
+      <span class="phase-badge badge-purple">Interview Q&amp;A</span>
+      <span class="chevron open" id="ch-p8">▶</span>
+    </div>
+    <div class="phase-body" id="b-p8">
+
+      <div class="highlight-box h-purple">
+        Both projects use similar raw inputs (clickstream, GA, CRM interactions) — the difference is <strong>what we do with those features and what problem we're solving</strong>.
+      </div>
+
+      <table class="compare-table" style="margin-top:12px;">
+        <thead>
+          <tr>
+            <th>Dimension</th>
+            <th>Seller propensity model</th>
+            <th>CRM scoring framework</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Core question</td>
+            <td>Will this inactive user convert in the next 30–90 days?</td>
+            <td>Is this user worth contacting today, and on which channel?</td>
+          </tr>
+          <tr>
+            <td>Methodology</td>
+            <td>Supervised ML — XGBoost trained on 1 year of labelled conversion data</td>
+            <td>Formula-based — explicit weighted aggregations, no training data needed</td>
+          </tr>
+          <tr>
+            <td>What features do</td>
+            <td>Input to a model that <em>learns</em> the relationship between features and conversion probability</td>
+            <td>Directly <em>become</em> interpretable scores — session freq = engagement score, recency = RFM-R</td>
+          </tr>
+          <tr>
+            <td>Output</td>
+            <td>Calibrated probability score (0–1) + decile ranking → micro-cohort targeting list</td>
+            <td>6 normalised scores (0–100) + tier assignment → pre-send suppression list</td>
+          </tr>
+          <tr>
+            <td>User base</td>
+            <td>Inactive users (30+ days) — medium to long-term targeting horizon</td>
+            <td>All sellers — evaluated fresh before every campaign send</td>
+          </tr>
+          <tr>
+            <td>Primary goal</td>
+            <td>Maximise conversions by finding high-potential users in a cold base</td>
+            <td>Minimise cost by suppressing users unlikely to respond right now</td>
+          </tr>
+          <tr>
+            <td>Explainability</td>
+            <td>Partial — SHAP values can explain, but XGBoost is not fully transparent</td>
+            <td>Full — CRM team can see exactly why a user has a high or low score</td>
+          </tr>
+          <tr>
+            <td>In production</td>
+            <td>PMML model served via REST API on EC2 with CI/CD, PSI/CSI monitoring</td>
+            <td>Score table refreshed daily/weekly, queried directly by CRM team</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="highlight-box h-teal" style="margin-top:12px;">
+        <strong>How they work together:</strong> The propensity model identifies <em>who could convert</em> over the next 30–90 days — a strategic targeting pool from the inactive base. The CRM scoring framework then filters that list using <em>current engagement state</em> — so budget isn't spent on a user the propensity model flagged as high-potential but who hasn't been active in 3 weeks. One gives the strategic pool, the other gives the operational precision.
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    In-House CRM Scoring Framework · Cars24 Seller Journey · CRM Intelligence Document
+  </div>
+
+</div>
+
+<script>
+  function toggle(id) {
+    const body = document.getElementById('b-' + id);
+    const ch = document.getElementById('ch-' + id);
+    const header = ch.closest('.phase-header');
+    const isOpen = !body.classList.contains('collapsed');
+    body.classList.toggle('collapsed', isOpen);
+    ch.classList.toggle('open', !isOpen);
+    header.classList.toggle('open', !isOpen);
+  }
+  function expandAll() {
+    document.querySelectorAll('.phase-body').forEach(b => b.classList.remove('collapsed'));
+    document.querySelectorAll('.chevron').forEach(c => c.classList.add('open'));
+    document.querySelectorAll('.phase-header').forEach(h => h.classList.add('open'));
+  }
+  function collapseAll() {
+    document.querySelectorAll('.phase-body').forEach(b => b.classList.add('collapsed'));
+    document.querySelectorAll('.chevron').forEach(c => c.classList.remove('open'));
+    document.querySelectorAll('.phase-header').forEach(h => h.classList.remove('open'));
+  }
+</script>
+</body>
+</html>
